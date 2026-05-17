@@ -1,18 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
     <!-- Core -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-
-    <!--
-        CRITICAL FIX: RECEIVE_BOOT_COMPLETED lets FCM re-register the device
-        token after a phone reboot, so notifications keep working after restart.
-    -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- Camera & video -->
     <uses-permission android:name="android.permission.CAMERA" />
@@ -30,7 +23,7 @@
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
 
-    <!-- Push notifications (Android 13+) -->
+    <!-- Push notifications (Firebase Cloud Messaging) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" />
 
@@ -67,11 +60,7 @@
             </intent-filter>
         </activity>
 
-        <!--
-            Firebase Cloud Messaging service.
-            android:exported="false" — only FCM infrastructure can start this.
-            This service handles ALL app states: foreground, background, killed.
-        -->
+        <!-- Firebase Cloud Messaging service -->
         <service
             android:name=".PushService"
             android:exported="false">
@@ -80,13 +69,6 @@
             </intent-filter>
         </service>
 
-        <!--
-            CRITICAL: default_notification_channel_id MUST match:
-              1. strings.xml  → default_notification_channel_id = "default_channel"
-              2. PushService.java → channelId = getString(R.string.default_notification_channel_id)
-              3. Edge function data payload → channel_id: "default_channel"
-            All three must be identical or Android silently drops the notification.
-        -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="@string/default_notification_channel_id" />
@@ -103,6 +85,5 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
-
     </application>
 </manifest>

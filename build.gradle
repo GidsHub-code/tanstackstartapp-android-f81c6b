@@ -1,23 +1,14 @@
-// ROOT build.gradle
-// Fix: removed implementation() calls from buildscript{} — they are illegal here.
-// Firebase BOM and dependencies belong in app/build.gradle, not the root file.
-// Also removed duplicate plugin declarations.
-
 buildscript {
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        // Android Gradle Plugin
-        classpath 'com.android.tools.build:gradle:8.7.3'
-        // Google Services plugin (needed for Firebase / google-services.json)
+        // Only used if app/google-services.json is present.
         classpath 'com.google.gms:google-services:4.4.2'
     }
 }
 
-// Root-level plugin block — declare plugins used by subprojects here (apply false)
 plugins {
     id 'com.android.application' version '8.7.3' apply false
-    id 'com.google.gms.google-services' version '4.4.2' apply false
 }
