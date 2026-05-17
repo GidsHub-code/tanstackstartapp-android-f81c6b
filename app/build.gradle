@@ -1,0 +1,81 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Apply google-services plugin only if google-services.json is provided.
+// (Firebase push works once the user drops their google-services.json into app/.)
+def googleServicesJson = file('google-services.json')
+if (googleServicesJson.exists()) {
+    apply plugin: 'com.google.gms.google-services'
+}
+
+def hasReleaseSigning = System.getenv("KEYSTORE_PATH") && System.getenv("KEYSTORE_PASSWORD") && System.getenv("KEY_ALIAS") && System.getenv("KEY_PASSWORD")
+
+android {
+    namespace "app.git2app.dev.workers.nnadigideon20.tanstackstartapp"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "app.git2app.dev.workers.nnadigideon20.tanstackstartapp"
+        minSdk 23
+        targetSdk 35
+        versionCode 1
+        versionName "1.0.0"
+
+        manifestPlaceholders = [
+            hostName: "tanstack-start-app.nnadigideon20.workers.dev",
+            defaultUrl: "https://tanstack-start-app.nnadigideon20.workers.dev"
+        ]
+    }
+
+    signingConfigs {
+        release {
+            if (hasReleaseSigning) {
+                storeFile file(System.getenv("KEYSTORE_PATH"))
+                storePassword System.getenv("KEYSTORE_PASSWORD")
+                keyAlias System.getenv("KEY_ALIAS")
+                keyPassword System.getenv("KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-debug"
+        }
+        release {
+            minifyEnabled false
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+configurations.all {
+    resolutionStrategy {
+        force 'org.jetbrains.kotlin:kotlin-stdlib:1.9.24'
+        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.24'
+        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.24'
+        force 'org.jetbrains.kotlin:kotlin-stdlib-common:1.9.24'
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.webkit:webkit:1.12.1'
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
+    implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.1.0'
+    implementation 'androidx.core:core:1.13.1'
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.9.24'
+
+    // Firebase Cloud Messaging (in-app + system tray push)
+    implementation platform('com.google.firebase:firebase-bom:33.5.1')
+    implementation 'com.google.firebase:firebase-messaging'
+}
