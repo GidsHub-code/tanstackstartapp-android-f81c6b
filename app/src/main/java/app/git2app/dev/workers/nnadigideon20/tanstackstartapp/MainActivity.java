@@ -16,6 +16,7 @@ import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
+import android.view.View;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import androidx.activity.result.ActivityResultLauncher;
@@ -41,8 +42,19 @@ public class MainActivity extends AppCompatActivity {
         // Swap from splash theme back to the normal app theme before drawing the WebView.
         setTheme(R.style.AppTheme);
         super.onCreate(savedInstanceState);
-        getWindow().setStatusBarColor(0xFF000000 | (14427686));
-        getWindow().setNavigationBarColor(0xFF000000 | (16777215));
+        // Force status bar and navigation bar to solid black on every generated app.
+        getWindow().setStatusBarColor(0xFF000000);
+        getWindow().setNavigationBarColor(0xFF000000);
+        // Use light (white) icons on the black bars.
+        try {
+            View decor = getWindow().getDecorView();
+            int flags = decor.getSystemUiVisibility();
+            flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                flags &= ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            }
+            decor.setSystemUiVisibility(flags);
+        } catch (Throwable ignored) {}
         setContentView(R.layout.activity_main);
         refresh = findViewById(R.id.refresh);
         webView = findViewById(R.id.webview);
