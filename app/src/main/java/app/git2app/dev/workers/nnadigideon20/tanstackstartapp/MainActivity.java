@@ -1,4 +1,4 @@
-package app.git2app.dev.workers.nnadigideon20.tanstackstartapp;
+package signalme.pro;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
