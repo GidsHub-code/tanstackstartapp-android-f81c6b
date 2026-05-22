@@ -12,11 +12,11 @@ if (googleServicesJson.exists()) {
 def hasReleaseSigning = System.getenv("KEYSTORE_PATH") && System.getenv("KEYSTORE_PASSWORD") && System.getenv("KEY_ALIAS") && System.getenv("KEY_PASSWORD")
 
 android {
-    namespace "app.git2app.dev.workers.nnadigideon20.tanstackstartapp"
+    namespace "signalme.pro"
     compileSdk 35
 
     defaultConfig {
-        applicationId "app.git2app.dev.workers.nnadigideon20.tanstackstartapp"
+        applicationId "signalme.pro"
         minSdk 23
         targetSdk 35
         versionCode 2
