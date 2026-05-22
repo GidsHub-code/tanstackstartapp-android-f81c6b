@@ -42,7 +42,7 @@ android {
 
     buildTypes {
         debug {
-            applicationIdSuffix ".debug"
+            // No applicationIdSuffix — keeps package id matching google-services.json
             versionNameSuffix "-debug"
         }
         release {
