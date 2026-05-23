@@ -20,6 +20,7 @@ import android.view.View;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.PickVisualMediaRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -30,6 +31,7 @@ public class MainActivity extends AppCompatActivity {
     private SwipeRefreshLayout refresh;
     private ValueCallback<Uri[]> fileChooserCallback;
     private ActivityResultLauncher<Intent> fileChooserLauncher;
+    private ActivityResultLauncher<PickVisualMediaRequest> photoPickerLauncher;
     private PermissionRequest pendingWebPermissionRequest;
 
     private static final String START_URL = "https://tanstack-start-app.nnadigideon20.workers.dev";
@@ -39,13 +41,10 @@ public class MainActivity extends AppCompatActivity {
     @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // Swap from splash theme back to the normal app theme before drawing the WebView.
         setTheme(R.style.AppTheme);
         super.onCreate(savedInstanceState);
-        // Force status bar and navigation bar to solid black on every generated app.
         getWindow().setStatusBarColor(0xFF000000);
         getWindow().setNavigationBarColor(0xFF000000);
-        // Use light (white) icons on the black bars.
         try {
             View decor = getWindow().getDecorView();
             int flags = decor.getSystemUiVisibility();
@@ -61,6 +60,7 @@ public class MainActivity extends AppCompatActivity {
 
         createNotificationChannel();
         requestRuntimePermissions();
+        registerPhotoPickerLauncher();
         registerFileChooser();
 
         WebSettings s = webView.getSettings();
@@ -90,9 +90,36 @@ public class MainActivity extends AppCompatActivity {
             }
 
             @Override
-            public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> filePathCallback, FileChooserParams params) {
+            public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> filePathCallback,
+                                             FileChooserParams params) {
                 if (fileChooserCallback != null) fileChooserCallback.onReceiveValue(null);
                 fileChooserCallback = filePathCallback;
+
+                // Detect if this is a media-only request (images/videos)
+                String[] acceptTypes = params.getAcceptTypes();
+                boolean wantsMedia = false;
+                if (acceptTypes != null) {
+                    for (String type : acceptTypes) {
+                        if (type != null && (type.startsWith("image/") || type.startsWith("video/"))) {
+                            wantsMedia = true;
+                            break;
+                        }
+                    }
+                }
+                // Also treat an empty accept type as potentially media
+                if (acceptTypes == null || acceptTypes.length == 0) wantsMedia = true;
+
+                // Use Android Photo Picker (no storage permission needed)
+                if (ActivityResultContracts.PickVisualMedia.isPhotoPickerAvailable(MainActivity.this)) {
+                    photoPickerLauncher.launch(
+                        new PickVisualMediaRequest.Builder()
+                            .setMediaType(ActivityResultContracts.PickVisualMedia.ImageAndVideo.INSTANCE)
+                            .build()
+                    );
+                    return true;
+                }
+
+                // Fallback: use the standard file chooser intent for older devices
                 Intent intent = params.createIntent();
                 try {
                     fileChooserLauncher.launch(intent);
@@ -109,7 +136,8 @@ public class MainActivity extends AppCompatActivity {
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
                 Uri uri = req.getUrl();
                 String scheme = uri.getScheme();
-                if ("tel".equals(scheme) || "mailto".equals(scheme) || "sms".equals(scheme) || "geo".equals(scheme) || "intent".equals(scheme)) {
+                if ("tel".equals(scheme) || "mailto".equals(scheme) || "sms".equals(scheme)
+                        || "geo".equals(scheme) || "intent".equals(scheme)) {
                     try { startActivity(new Intent(Intent.ACTION_VIEW, uri)); } catch (Exception ignored) {}
                     return true;
                 }
@@ -120,8 +148,12 @@ public class MainActivity extends AppCompatActivity {
                 try { startActivity(new Intent(Intent.ACTION_VIEW, uri)); } catch (Exception ignored) {}
                 return true;
             }
+
             @Override
-            public void onPageStarted(WebView view, String url, Bitmap favicon) { refresh.setRefreshing(true); }
+            public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                refresh.setRefreshing(true);
+            }
+
             @Override
             public void onPageFinished(WebView view, String url) {
                 refresh.setRefreshing(false);
@@ -134,7 +166,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Listen for new FCM tokens and push them into the WebView live
         androidx.localbroadcastmanager.content.LocalBroadcastManager.getInstance(this)
             .registerReceiver(new android.content.BroadcastReceiver() {
                 @Override
@@ -156,12 +187,30 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // Register the Android Photo Picker launcher (no storage permission required)
+    private void registerPhotoPickerLauncher() {
+        photoPickerLauncher = registerForActivityResult(
+            new ActivityResultContracts.PickVisualMedia(),
+            uri -> {
+                if (fileChooserCallback == null) return;
+                if (uri != null) {
+                    fileChooserCallback.onReceiveValue(new Uri[]{uri});
+                } else {
+                    fileChooserCallback.onReceiveValue(null);
+                }
+                fileChooserCallback = null;
+            }
+        );
+    }
+
+    // Fallback file chooser for older devices / non-media file types
     private void registerFileChooser() {
         fileChooserLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
                 if (fileChooserCallback == null) return;
-                Uri[] uris = WebChromeClient.FileChooserParams.parseResult(result.getResultCode(), result.getData());
+                Uri[] uris = WebChromeClient.FileChooserParams.parseResult(
+                    result.getResultCode(), result.getData());
                 fileChooserCallback.onReceiveValue(uris);
                 fileChooserCallback = null;
             }
@@ -187,21 +236,18 @@ public class MainActivity extends AppCompatActivity {
 
     private void requestRuntimePermissions() {
         java.util.ArrayList<String> needed = new java.util.ArrayList<>();
+        // Only camera, audio and notifications — no storage permissions needed
         String[] candidates;
         if (Build.VERSION.SDK_INT >= 33) {
-            candidates = new String[] {
+            candidates = new String[]{
                 Manifest.permission.CAMERA,
                 Manifest.permission.RECORD_AUDIO,
-                Manifest.permission.READ_MEDIA_IMAGES,
-                Manifest.permission.READ_MEDIA_VIDEO,
-                Manifest.permission.READ_MEDIA_AUDIO,
                 Manifest.permission.POST_NOTIFICATIONS
             };
         } else {
-            candidates = new String[] {
+            candidates = new String[]{
                 Manifest.permission.CAMERA,
-                Manifest.permission.RECORD_AUDIO,
-                Manifest.permission.READ_EXTERNAL_STORAGE
+                Manifest.permission.RECORD_AUDIO
             };
         }
         for (String p : candidates) {
